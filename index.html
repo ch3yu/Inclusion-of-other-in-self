@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Continuous IOS — Repeated Measurement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- EmailJS browser SDK (used to send results from the static page) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  :root{
+    --bg:#eaeef2;
+    --surface:#ffffff;
+    --ink:#16212e;
+    --muted:#5d6b7a;
+    --line:#d6dde4;
+    --self:#2f6fb0;
+    --other:#e08a5d;
+    --accent:#2f6fb0;
+    --accent-ink:#ffffff;
+    --radius:14px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Inter",system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5;
+    min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
+    padding:32px 18px;
+  }
+  .stage{width:100%;max-width:680px}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:30px;box-shadow:0 1px 2px rgba(20,33,46,.04),0 8px 28px rgba(20,33,46,.06);
+  }
+  h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:24px;letter-spacing:-.01em;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+  h2{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:15px;margin:0 0 14px}
+  label{display:block;font-size:13px;font-weight:500;margin:0 0 6px}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+  input[type=text],input[type=number],select{
+    width:100%;font:inherit;font-size:14px;color:var(--ink);background:#fbfcfd;
+    border:1px solid var(--line);border-radius:9px;padding:9px 11px;
+  }
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .field{margin-bottom:18px}
+  .check{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}
+  .check input{margin-top:3px;width:16px;height:16px;accent-color:var(--accent)}
+  .check label{margin:0;font-weight:400}
+  .exp-group{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:6px}
+  .exp-group .check{margin-bottom:0}
+  .divider{height:1px;background:var(--line);margin:22px 0}
+  button{font:inherit;font-weight:600;font-size:14px;border:none;border-radius:9px;padding:11px 20px;cursor:pointer;transition:filter .15s,opacity .15s}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .primary{background:var(--accent);color:var(--accent-ink)}
+  .primary:hover{filter:brightness(1.07)}
+  .primary:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .ghost:hover{background:#f2f5f8}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+  .progress-wrap{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  .progress-track{flex:1;height:5px;background:var(--line);border-radius:99px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--accent);width:0;transition:width .3s ease}
+  .progress-label{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+
+  .target-field{margin:0 0 18px}
+  .stim{display:block;width:100%;height:auto;margin:0 auto;max-width:420px}
+  .legend{display:flex;gap:18px;justify-content:center;font-size:12.5px;color:var(--muted);margin-top:4px}
+  .dot{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:5px}
+  .slider-wrap{margin:24px 0 8px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:linear-gradient(90deg,var(--self),var(--other));cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--ink);box-shadow:0 2px 5px rgba(20,33,46,.25);cursor:grab}
+  input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--ink);box-shadow:0 2px 5px rgba(20,33,46,.25);cursor:grab}
+  .scale-ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px}
+  .value-readout{text-align:center;font-family:var(--mono);font-size:14px;color:var(--ink);margin-top:12px}
+  .drag-hint{text-align:center;font-size:13px;color:var(--muted);margin:14px 0 0;height:18px}
+  .trial-actions{margin-top:24px;display:flex;justify-content:space-between;gap:12px}
+  .trial-actions .primary{margin-left:auto}
+  .intro{background:#f4f6f8;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:14px 16px;font-size:13.5px;line-height:1.55;color:#3d4855;margin:0 0 24px}
+  .intro strong{display:block;margin-bottom:6px;color:#16212e}
+
+  .fixation{display:none}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+  th,td{text-align:right;padding:6px 9px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--surface)}
+  td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}
+  .table-scroll{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:14px 0}
+  .warn{background:#fff7ed;border:1px solid #f0c89b;color:#8a5a23;font-size:13px;border-radius:9px;padding:11px 13px;margin:16px 0}
+  .status{font-size:13px;border-radius:9px;padding:11px 13px;margin:16px 0}
+  .status.ok{background:#edf7ed;border:1px solid #abd6ab;color:#2f6b34}
+  .status.err{background:#fdecec;border:1px solid #e7b0b0;color:#a23434}
+  .status.info{background:#eef3f8;border:1px solid #c3d4e4;color:#33597e}
+  .hide{display:none}
+  .instr{font-size:15px}.instr p{margin:0 0 14px}
+  @media (max-width:520px){.card{padding:22px}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- ============ SETUP ============ -->
+  <section id="setup" class="card">
+    <h1>Continuous IOS — Repeated Measurement</h1>
+    <p class="sub">A participant reports interpersonal closeness across 20 trials. Each response is recorded and emailed to the researcher on completion.</p>
+
+    <div class="intro">
+      <strong>About this measure</strong>
+      The core idea of inclusion of other in self (IOS), developed primarily by psychologist Arthur Aron and his colleagues in the early 1990s, is that we begin to incorporate aspects of someone into our own sense of who we are when we form a close relationship with that person &mdash; the boundary between &ldquo;me&rdquo; and &ldquo;you&rdquo; becomes porous, and their resources, perspectives, and identity start to feel, on some level, like our own. IOS was developed to measure interpersonal closeness, and it was validated against established, longer, and more complicated closeness questionnaires when Aron and colleagues introduced the scale &mdash; and it held up impressively well.
+    </div>
+
+    <div class="field">
+      <label for="pname">Participant Name</label>
+      <input type="text" id="pname" placeholder="e.g. Jordan Smith" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>Experiment</label>
+      <div class="exp-group">
+        <div class="check"><input type="checkbox" id="exp1"><label for="exp1">Experiment 1</label></div>
+        <div class="check"><input type="checkbox" id="exp2"><label for="exp2">Experiment 2</label></div>
+      </div>
+      <p class="hint">Choose one.</p>
+    </div>
+
+    <div class="divider"></div>
+    <button class="primary" id="startBtn">Start session</button>
+    <p class="hint" id="emailConfigNote" style="margin-top:12px"></p>
+  </section>
+
+  <!-- ============ INSTRUCTIONS ============ -->
+  <section id="instructions" class="card hide">
+    <h1>Before you begin</h1>
+    <div class="instr">
+      <p>On each screen you'll see two circles — one is <strong>you</strong>, the other is the <strong>target</strong> you name.</p>
+      <p>Type the target's name, then drag the slider to set how much the circles overlap. The overlap of the circles represents the connection you feel towards the other participant. For example, a stronger connection between you and the other participant would be represented by a greater overlap of the circles. Find the degree of overlap that best represents the connection you feel towards the other participant during the trial.</p>
+      <p>You'll do this <strong>20</strong> times. There are no right or wrong answers — respond honestly each time.</p>
+    </div>
+    <div class="divider"></div>
+    <button class="primary" id="beginBtn">Begin</button>
+  </section>
+
+  <!-- ============ TRIAL ============ -->
+  <section id="trial" class="card hide">
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+      <div class="progress-label" id="progLabel">1 / 20</div>
+    </div>
+
+    <div class="target-field">
+      <label for="target">Target</label>
+      <input type="text" id="target" placeholder="Name of the person this rating is for" autocomplete="off">
+    </div>
+
+    <svg class="stim" id="stim" viewBox="0 0 360 240" role="img" aria-label="Two overlapping circles representing closeness">
+      <g style="mix-blend-mode:multiply">
+        <circle id="cSelf"  cx="109" cy="120" r="71" fill="var(--self)"  fill-opacity="0.55"/>
+        <circle id="cOther" cx="251" cy="120" r="71" fill="var(--other)" fill-opacity="0.55"/>
+      </g>
+      <text id="tSelf"  x="109" y="125" text-anchor="middle" font-family="Inter,sans-serif" font-size="15" font-weight="600" fill="#16212e">You</text>
+      <text id="tOther" x="251" y="125" text-anchor="middle" font-family="Inter,sans-serif" font-size="15" font-weight="600" fill="#16212e">Target</text>
+    </svg>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--self)"></span>You</span>
+      <span><span class="dot" style="background:var(--other)"></span>Target</span>
+    </div>
+
+    <div class="slider-wrap">
+      <input type="range" id="slider" min="0" max="100" step="1" value="50" aria-label="Closeness: drag to set overlap">
+      <div class="scale-ends"><span>No overlap</span><span>Complete overlap</span></div>
+      <div class="value-readout" id="valueReadout">IOS value: 50</div>
+    </div>
+
+    <div class="drag-hint" id="dragHint">Drag the slider to set your response.</div>
+    <div class="trial-actions">
+      <button class="ghost" id="backBtn">Back</button>
+      <button class="primary" id="nextBtn" disabled>Continue</button>
+    </div>
+  </section>
+
+  <!-- ============ DONE ============ -->
+  <section id="done" class="card hide">
+    <h1>Session complete</h1>
+    <p class="sub">Recorded <span id="doneCount">0</span> responses for <span id="donePid">—</span> (<span id="doneExp">—</span>).</p>
+    <div id="emailStatus" class="status info">Sending results…</div>
+    <div class="warn">Data is held only in this browser tab. Download a copy as backup in case the email fails.</div>
+    <div class="row">
+      <button class="ghost" id="resendBtn">Send email again</button>
+      <button class="ghost" id="csvBtn">Download CSV</button>
+      <button class="ghost" id="jsonBtn">Download JSON</button>
+      <button class="primary" id="newBtn">New experiment</button>
+    </div>
+    <h2 style="margin-top:24px">Preview</h2>
+    <div class="table-scroll">
+      <table id="dataTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =======================================================================
+     EMAIL SETUP — replace the four values below with your own.
+     1. Create a free account at https://www.emailjs.com
+     2. Add an email service (e.g. Gmail) -> copy its Service ID.
+     3. Create an email template whose body includes the variables
+        {{participant_name}}, {{experiment}}, {{completed_at}}, {{summary}},
+        and {{csv_data}}; set the template "To" field to {{to_email}}.
+        Copy the Template ID.
+     4. In Account -> General, copy your Public Key.
+     5. Put your own address in toEmail.
+     Until these are filled in, the page still runs and lets you download
+     the data; it just won't email it.
+  ======================================================================= */
+  const EMAIL_CONFIG = {
+    publicKey:  "wp4iYmimv0I-YA70N",
+    serviceId:  "service_9jv1jnk",
+    templateId: "template_e3do984",
+    toEmail:    "cheyul@andrew.cmu.edu"
+  };
+
+  const emailReady = !/^YOUR_/.test(EMAIL_CONFIG.publicKey) &&
+                     !/^YOUR_/.test(EMAIL_CONFIG.serviceId) &&
+                     !/^YOUR_/.test(EMAIL_CONFIG.templateId);
+  if(emailReady && window.emailjs){ emailjs.init({ publicKey: EMAIL_CONFIG.publicKey }); }
+
+  const $ = id => document.getElementById(id);
+  const screens = ["setup","instructions","trial","done"];
+  function show(name){ screens.forEach(s => $(s).classList.toggle("hide", s!==name)); window.scrollTo(0,0); }
+
+  /* ---- geometry: constant total (union) area, circles grow with overlap ---- */
+  const R_FULL = 100;                 // radius at complete overlap (in viewBox units)
+  const U0 = Math.PI * R_FULL * R_FULL;   // constant union area
+  const MIDX = 180, CY = 120;
+  function render(s){
+    s = Math.max(0, Math.min(100, s));
+    const u = 1 - s/100;                          // u: 1 = tangent (no overlap), 0 = concentric
+    const g = Math.PI - Math.acos(u) + u*Math.sqrt(Math.max(0,1 - u*u));
+    const r = Math.sqrt(U0 / (2*g));              // radius that keeps union area = U0
+    const d = 2*r*u;                              // center-to-center distance
+    const selfX = MIDX - d/2, otherX = MIDX + d/2;
+    $("cSelf").setAttribute("r", r);  $("cSelf").setAttribute("cx", selfX);
+    $("cOther").setAttribute("r", r); $("cOther").setAttribute("cx", otherX);
+    $("tSelf").setAttribute("x", selfX);
+    $("tOther").setAttribute("x", otherX);
+  }
+
+  /* ---- state ---- */
+  const N_TRIALS = 20;
+  let cfg = {}, data = [], idx = 0;
+  let responses = [];                 // responses[i] = saved row for trial i (editable)
+  let onset = 0, sessionStart = 0, moved = false;
+
+  /* ---- setup: enforce single experiment choice ---- */
+  $("exp1").addEventListener("change", () => { if($("exp1").checked) $("exp2").checked = false; });
+  $("exp2").addEventListener("change", () => { if($("exp2").checked) $("exp1").checked = false; });
+
+  $("emailConfigNote").textContent = emailReady
+    ? "Results email is configured. Tip: download a backup copy on the final screen too."
+    : "Email is not configured yet — open this file and fill in EMAIL_CONFIG. Until then, download the data manually on the final screen.";
+
+  $("startBtn").addEventListener("click", () => {
+    const name = $("pname").value.trim();
+    if(!name){ $("pname").focus(); $("pname").style.borderColor = "#d9534f"; return; }
+    $("pname").style.borderColor = "";
+    const experiment = $("exp1").checked ? "Experiment 1" : ($("exp2").checked ? "Experiment 2" : "");
+    if(!experiment){ $("exp1").focus(); return; }
+
+    cfg = { name, experiment, n: N_TRIALS };
+    data = []; responses = []; idx = 0;
+    show("instructions");
+  });
+
+  $("beginBtn").addEventListener("click", () => { sessionStart = performance.now(); startTrial(); });
+
+  /* ---- trials ---- */
+  function startTrial(){
+    const prev = responses[idx];                          // already answered? (revisiting)
+    const v = prev ? prev.ios_value : 0;                  // fresh trials start at minimum overlap
+    const t = prev ? prev.target : "";                    // blank on a fresh trial; restored when revisiting
+    $("slider").value = v;
+    render(v);
+    $("target").value = t;
+    moved = !!prev;                                       // revisited trials are already "answered"
+    $("progLabel").textContent = (idx+1) + " / " + cfg.n;
+    $("progFill").style.width = (idx/cfg.n*100) + "%";
+    $("valueReadout").textContent = "IOS value: " + v;
+    $("nextBtn").textContent = (idx === cfg.n-1) ? "Finish" : "Continue";
+    $("backBtn").disabled = (idx === 0);
+    updateContinueState();                                // requires a target name AND a slider move
+    show("trial");
+    $("target").focus();
+    onset = performance.now();
+  }
+
+  // Continue is allowed only when a target name is entered and the slider has been moved.
+  function targetOK(){ return $("target").value.trim().length > 0; }
+  function updateContinueState(){
+    const t = targetOK(), m = moved;
+    $("nextBtn").disabled = !(t && m);
+    let msg = "";
+    if(!t && !m) msg = "Enter the target's name and drag the slider to continue.";
+    else if(!t)  msg = "Enter the target's name to continue.";
+    else if(!m)  msg = "Drag the slider to set your response.";
+    $("dragHint").textContent = msg;
+  }
+
+  function saveCurrent(){
+    const v = parseInt($("slider").value,10);
+    const now = performance.now();
+    responses[idx] = {
+      participant_name: cfg.name,
+      experiment: cfg.experiment,
+      trial: idx+1,
+      target: $("target").value.trim(),
+      ios_value: v,
+      response_time_ms: Math.round(now - onset),
+      onset_ms_since_start: Math.round(onset - sessionStart),
+      submit_ms_since_start: Math.round(now - sessionStart),
+      submit_iso: new Date().toISOString(),
+      moved_slider: true
+    };
+  }
+
+  $("slider").addEventListener("input", e => {
+    const v = parseInt(e.target.value,10);
+    render(v);
+    moved = true;
+    $("valueReadout").textContent = "IOS value: " + v;
+    updateContinueState();
+  });
+
+  $("target").addEventListener("input", updateContinueState);
+
+  $("nextBtn").addEventListener("click", () => {
+    if($("nextBtn").disabled) return;
+    saveCurrent();
+    if(idx >= cfg.n-1){ finish(); return; }
+    idx++;
+    startTrial();
+  });
+
+  $("backBtn").addEventListener("click", () => {
+    if(idx === 0) return;
+    if(moved || responses[idx]) saveCurrent();            // keep any edits made on this trial
+    idx--;
+    startTrial();
+  });
+
+  /* ---- done ---- */
+  function finish(){
+    data = responses.slice(0, cfg.n).filter(Boolean);
+    $("progFill").style.width = "100%";
+    $("doneCount").textContent = data.length;
+    $("donePid").textContent = cfg.name;
+    $("doneExp").textContent = cfg.experiment;
+    buildTable();
+    show("done");
+    sendEmail();
+  }
+
+  function buildTable(){
+    const cols = ["trial","target","ios_value","submit_iso"];   // preview omits timing fields
+    const heads = {trial:"trial", target:"target", ios_value:"ios_value", submit_iso:"submit_iso"};
+    $("dataTable").querySelector("thead").innerHTML =
+      "<tr>" + cols.map(c=>"<th>"+heads[c]+"</th>").join("") + "</tr>";
+    $("dataTable").querySelector("tbody").innerHTML = data.map(r =>
+      "<tr>" + cols.map(c => "<td>" + esc(r[c]) + "</td>").join("") + "</tr>"
+    ).join("");
+  }
+  function esc(v){ return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+  /* ---- CSV / JSON (full data, all fields) ---- */
+  const CSV_COLS = ["participant_name","experiment","trial","target","ios_value",
+                    "response_time_ms","onset_ms_since_start","submit_ms_since_start","submit_iso","moved_slider"];
+  function csvCell(v){ const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function toCSV(){
+    return [CSV_COLS.join(",")].concat(data.map(r => CSV_COLS.map(c => csvCell(r[c])).join(","))).join("\n");
+  }
+  function download(filename, text, type){
+    const url = URL.createObjectURL(new Blob([text],{type}));
+    const a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+  function stamp(){ return new Date().toISOString().replace(/[:.]/g,"-").slice(0,19); }
+  function safeName(){ return (cfg.name||"participant").replace(/[^a-z0-9_-]+/gi,"_"); }
+
+  $("csvBtn").addEventListener("click", () => download("ios_"+safeName()+"_"+stamp()+".csv", toCSV(), "text/csv"));
+  $("jsonBtn").addEventListener("click", () =>
+    download("ios_"+safeName()+"_"+stamp()+".json", JSON.stringify({config:cfg, recorded_at:new Date().toISOString(), data}, null, 2), "application/json"));
+
+  /* ---- email ---- */
+  function setStatus(kind, msg){ const el=$("emailStatus"); el.className="status "+kind; el.textContent=msg; }
+  function sendEmail(){
+    if(!emailReady || !window.emailjs){
+      setStatus("info", "Email isn't configured, so results were not sent. Download the data below to keep it.");
+      return;
+    }
+    setStatus("info", "Sending results…");
+    const csv = toCSV();
+    const filename = "ios_"+safeName()+"_"+stamp()+".csv";
+    // UTF-8 safe base64, sent as a data URL for the Variable Attachment
+    const b64 = btoa(unescape(encodeURIComponent(csv)));
+    const params = {
+      to_email: EMAIL_CONFIG.toEmail,
+      participant_name: cfg.name,
+      experiment: cfg.experiment,
+      completed_at: new Date().toISOString(),
+      summary: data.length+" trials, "+cfg.experiment+", participant: "+cfg.name,
+      csv_data: csv,                                  // still available if you want it inline
+      csv_filename: filename,                         // -> attachment file name
+      csv_attachment: "data:text/csv;base64," + b64   // -> Variable Attachment content
+    };
+    emailjs.send(EMAIL_CONFIG.serviceId, EMAIL_CONFIG.templateId, params)
+      .then(() => setStatus("ok", "Results emailed to "+EMAIL_CONFIG.toEmail+"."))
+      .catch(err => setStatus("err", "Email failed ("+(err && err.text ? err.text : "unknown error")+"). Please download the data below."));
+  }
+  $("resendBtn").addEventListener("click", sendEmail);
+
+  /* ---- new experiment: full reset ---- */
+  $("newBtn").addEventListener("click", () => {
+    cfg = {}; data = []; responses = []; idx = 0;
+    $("pname").value = ""; $("pname").style.borderColor = "";
+    $("exp1").checked = false; $("exp2").checked = false;
+    render(0);
+    show("setup"); $("pname").focus();
+  });
+
+  /* init */
+  render(0);
+  show("setup");
+})();
+</script>
+</body>
+</html>
